@@ -1,7 +1,3 @@
-Here's a structured **README** for your Bank of England employer project repository. It includes an overview, setup instructions, methodology, and team details.
-
----
-
 ### 📌 **Bank of England Employer Project: NLP Analysis of G-SIB Announcements**
 
 ![Project Status](https://img.shields.io/badge/Project_Status-In_Progress-orange.svg)
