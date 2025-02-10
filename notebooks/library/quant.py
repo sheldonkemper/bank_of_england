@@ -6,6 +6,7 @@ nltk.download("stopwords")
 nltk.download("punkt")
 nltk.download("punkt_tab")
 from nltk.tokenize import word_tokenize
+from nltk.stem import PorterStemmer
 from collections import Counter
 import regex as re
 
@@ -33,6 +34,11 @@ def preprocessor (data, col):
 
   #remove symbols
   data[col] = data[col].apply (lambda x: [re.sub(r"[^a-z]", "", word) for word in x])
+
+  #remove stemmers
+  stemmer =PorterStemmer()
+  data[col] = data[col].apply(lambda x: [stemmer.stem(word)for word in x])
+  
   return
 
 def remove_freq_words(data, col, percent):
