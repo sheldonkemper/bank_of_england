@@ -18,10 +18,12 @@ By leveraging NLP methods such as **topic modelling, sentiment analysis, and sum
 ```
 ├── data/                    # Raw and processed data
 │   ├── raw/                 # Unprocessed transcripts & reports
-│   ├── cleaned/             # Preprocessed text data
+│   ├── Preprocessed/             # Preprocessed text data
+|   ├── processed/             # csv file before preprocessing
 ├── notebooks/               # Jupyter/Colab notebooks for analysis
-│   ├── data_cleaning.ipynb  # Uses functions from preprocessing.py
-│   ├── eda.ipynb            # Exploratory Data Analysis
+│   ├── library/            # Storing customised packages
+|   ├── processed/ ata_cleaning.ipynb  # Uses functions from preprocessing.py
+│   ├── import/ eda.ipynb            # Exploratory Data Analysis
 ├── src/
 │   ├── preprocessing.py 
 ├── src/                     # Source code for NLP processing
