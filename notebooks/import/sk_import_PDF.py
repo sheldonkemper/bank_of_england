@@ -1,0 +1,310 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "colab_type": "text",
+        "id": "view-in-github"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/sheldonkemper/bank_of_england/blob/main/notebooks/import/sk_import_PDF.ipynb\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 5,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 87
+        },
+        "id": "2C9SSNHREALD",
+        "outputId": "e4df1f71-6b53-4207-8e02-aa337b31c233"
+      },
+      "outputs": [
+        {
+          "data": {
+            "application/vnd.google.colaboratory.intrinsic+json": {
+              "type": "string"
+            },
+            "text/plain": [
+              "'\\n===================================================\\nAuthor: Sheldon Kemper\\nRole: Data Engineering Lead, Bank of England Employer Project (Quant Collective)\\nLinkedIn: https://www.linkedin.com/in/sheldon-kemper\\nDate: 2025-02-04\\nVersion: 1.0\\n\\nDescription:\\n    This notebook is dedicated to the data engineering functions for the Bank of England Employer Project.\\n    It includes code for mounting Google Drive, reading raw PDF files (e.g., earnings call transcripts),\\n    and saving these fles to a raw directory.\\n\\nDependencies:\\n    - pdfplumber\\n    - re\\n    - google.colab (for mounting Google Drive)\\n    - os\\n\\n===================================================\\n'"
+            ]
+          },
+          "execution_count": 5,
+          "metadata": {},
+          "output_type": "execute_result"
+        }
+      ],
+      "source": [
+        "\n",
+        "\"\"\"\n",
+        "===================================================\n",
+        "Author: Sheldon Kemper\n",
+        "Role: Data Engineering Lead, Bank of England Employer Project (Quant Collective)\n",
+        "LinkedIn: https://www.linkedin.com/in/sheldon-kemper\n",
+        "Date: 2025-02-04\n",
+        "Version: 1.0\n",
+        "\n",
+        "Description:\n",
+        "    This notebook is dedicated to the data engineering functions for the Bank of England Employer Project.\n",
+        "    It includes code for mounting Google Drive, reading raw PDF files (e.g., earnings call transcripts),\n",
+        "    and saving these fles to a raw directory.\n",
+        "\n",
+        "Dependencies:\n",
+        "    - pdfplumber\n",
+        "    - re\n",
+        "    - google.colab (for mounting Google Drive)\n",
+        "    - os\n",
+        "\n",
+        "===================================================\n",
+        "\"\"\""
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 6,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "bbVKn3KeJht9",
+        "outputId": "e62568ea-bd4a-40ef-d193-fca89ba0850a"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Collecting pdfplumber\n",
+            "  Using cached pdfplumber-0.11.5-py3-none-any.whl.metadata (42 kB)\n",
+            "Collecting pdfminer.six==20231228 (from pdfplumber)\n",
+            "  Using cached pdfminer.six-20231228-py3-none-any.whl.metadata (4.2 kB)\n",
+            "Requirement already satisfied: Pillow>=9.1 in /usr/local/lib/python3.11/dist-packages (from pdfplumber) (11.1.0)\n",
+            "Collecting pypdfium2>=4.18.0 (from pdfplumber)\n",
+            "  Using cached pypdfium2-4.30.1-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (48 kB)\n",
+            "Requirement already satisfied: charset-normalizer>=2.0.0 in /usr/local/lib/python3.11/dist-packages (from pdfminer.six==20231228->pdfplumber) (3.4.1)\n",
+            "Requirement already satisfied: cryptography>=36.0.0 in /usr/local/lib/python3.11/dist-packages (from pdfminer.six==20231228->pdfplumber) (43.0.3)\n",
+            "Requirement already satisfied: cffi>=1.12 in /usr/local/lib/python3.11/dist-packages (from cryptography>=36.0.0->pdfminer.six==20231228->pdfplumber) (1.17.1)\n",
+            "Requirement already satisfied: pycparser in /usr/local/lib/python3.11/dist-packages (from cffi>=1.12->cryptography>=36.0.0->pdfminer.six==20231228->pdfplumber) (2.22)\n",
+            "Using cached pdfplumber-0.11.5-py3-none-any.whl (59 kB)\n",
+            "Using cached pdfminer.six-20231228-py3-none-any.whl (5.6 MB)\n",
+            "Using cached pypdfium2-4.30.1-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.9 MB)\n",
+            "Installing collected packages: pypdfium2, pdfminer.six, pdfplumber\n",
+            "Successfully installed pdfminer.six-20231228 pdfplumber-0.11.5 pypdfium2-4.30.1\n"
+          ]
+        }
+      ],
+      "source": [
+        "!pip install pdfplumber  # Install pdfplumber library"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 7,
+      "metadata": {
+        "id": "DsiugvqOJCW3"
+      },
+      "outputs": [],
+      "source": [
+        "import os\n",
+        "import requests\n",
+        "import pdfplumber\n",
+        "import re\n",
+        "import pandas as pd\n",
+        "from google.colab import drive\n",
+        "from concurrent.futures import ThreadPoolExecutor, as_completed"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 8,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "6VD8ipZFGbLk",
+        "outputId": "a1da5865-22b2-41df-f971-847332589092"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "Mounted at /content/drive\n",
+            "['raw', 'processed', 'preprocessed_data']\n"
+          ]
+        }
+      ],
+      "source": [
+        "# -------------------------------\n",
+        "# 1. Mount Google Drive and import necessary libraries\n",
+        "# -------------------------------\n",
+        "drive.mount('/content/drive', force_remount=True)\n",
+        "\n",
+        "# Assuming 'BOE' folder is in 'MyDrive' and already shared\n",
+        "BOE_path = '/content/drive/MyDrive/BOE/bank_of_england/data'\n",
+        "\n",
+        "# Now you (and others with access) can work with files in this directory\n",
+        "# For example, you can list the contents:\n",
+        "print(os.listdir(BOE_path))"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 9,
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "wJf27jjOJCW4",
+        "outputId": "70bb76c8-1789-441e-87a8-48bc5125fcb5"
+      },
+      "outputs": [
+        {
+          "name": "stdout",
+          "output_type": "stream",
+          "text": [
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/2nd-quarter/2q23-earnings-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/2q23-earnings-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/3rd-quarter/jpm-3q23-earnings-call-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/jpm-3q23-earnings-call-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/4th-quarter/jpm-4q23-earnings-call-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/jpm-4q23-earnings-call-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/1st-quarter/1q23-earnings-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/1q23-earnings-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/1st-quarter/jpm-1q24-earnings-call-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/jpm-1q24-earnings-call-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/2nd-quarter/jpm-2q24-earnings-call-transcript-final.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/jpm-2q24-earnings-call-transcript-final.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/4th-quarter/4q24-earnings-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/4q24-earnings-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/3rd-quarter/jpmc-third-quarter-2024-earnings-conference-call-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/jpmc-third-quarter-2024-earnings-conference-call-transcript.pdf')\n",
+            "\n",
+            "Summary of Downloads:\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/2nd-quarter/2q23-earnings-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/2q23-earnings-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/3rd-quarter/jpm-3q23-earnings-call-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/jpm-3q23-earnings-call-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/4th-quarter/jpm-4q23-earnings-call-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/jpm-4q23-earnings-call-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/1st-quarter/1q23-earnings-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/1q23-earnings-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/1st-quarter/jpm-1q24-earnings-call-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/jpm-1q24-earnings-call-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/2nd-quarter/jpm-2q24-earnings-call-transcript-final.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/jpm-2q24-earnings-call-transcript-final.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/4th-quarter/4q24-earnings-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/4q24-earnings-transcript.pdf')\n",
+            "('https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/3rd-quarter/jpmc-third-quarter-2024-earnings-conference-call-transcript.pdf', 'downloaded', '/content/drive/MyDrive/BOE/bank_of_england/data/raw/jpmorgan/jpmc-third-quarter-2024-earnings-conference-call-transcript.pdf')\n"
+          ]
+        }
+      ],
+      "source": [
+        "# Notebook 1: Import Transcripts and Append Data (Improved Download Code)\n",
+        "\n",
+        "# -------------------------------\n",
+        "# 2. Define local paths on your Google Drive\n",
+        "# -------------------------------\n",
+        "bank = 'jpmorgan'\n",
+        "raw_dir = f\"{BOE_path}/raw/{bank}\"\n",
+        "\n",
+        "# Create directories if they don't exist\n",
+        "os.makedirs(raw_dir, exist_ok=True)\n",
+        "\n",
+        "# -------------------------------\n",
+        "# 3. Define the list of transcript URLs you are interested in\n",
+        "# -------------------------------\n",
+        "transcript_urls = [\n",
+        "    \"https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/1st-quarter/1q23-earnings-transcript.pdf\",\n",
+        "    \"https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/2nd-quarter/2q23-earnings-transcript.pdf\",\n",
+        "    \"https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/3rd-quarter/jpm-3q23-earnings-call-transcript.pdf\",\n",
+        "    \"https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2023/4th-quarter/jpm-4q23-earnings-call-transcript.pdf\",\n",
+        "    \"https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/1st-quarter/jpm-1q24-earnings-call-transcript.pdf\",\n",
+        "    \"https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/2nd-quarter/jpm-2q24-earnings-call-transcript-final.pdf\",\n",
+        "    \"https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/3rd-quarter/jpmc-third-quarter-2024-earnings-conference-call-transcript.pdf\",\n",
+        "    \"https://www.jpmorganchase.com/content/dam/jpmc/jpmorgan-chase-and-co/investor-relations/documents/quarterly-earnings/2024/4th-quarter/4q24-earnings-transcript.pdf\"\n",
+        "]\n",
+        "\n",
+        "# transcript_urls = [\n",
+        "#     # 2023 Transcripts (from the archive)\n",
+        "#     # Q1 2023 (placeholder URL – please verify)\n",
+        "#     \"https://www.ubs.com/global/en/investor-relations/financial-information/quarterly-reporting/qr-shared/2023/1q23/_jcr_content/mainpar/toplevelgrid_copy_co/col1/linklistreimagined_c/link_2038370922.1996821412.file/PS9jb250ZW50L2RhbS9hc3NldHMvY2MvaW52ZXN0b3ItcmVsYXRpb25zL3F1YXJ0ZXJsaWVzLzIwMjMvMXEyMy8xcTIzLWVhcm5pbmdzLWNhbGwtcmVtYXJrcy5wZGY=/1q23-earnings-call-remarks.pdf\",\n",
+        "#     # Q2 2023 (placeholder URL – please verify)\n",
+        "#     \"https://www.ubs.com/global/en/investor-relations/financial-information/quarterly-reporting/qr-shared/2023/2q23/_jcr_content/mainpar/toplevelgrid_copy_co/col1/linklistreimagined_c/link_2038370922_copy.1634234040.file/PS9jb250ZW50L2RhbS9hc3NldHMvY2MvaW52ZXN0b3ItcmVsYXRpb25zL3F1YXJ0ZXJsaWVzLzIwMjMvMnEyMy8ycTIzLWVhcm5pbmdzLWNhbGwtcmVtYXJrcy5wZGY=/2q23-earnings-call-remarks.pdf\",\n",
+        "#     # Q3 2023 (actual URL as found on UBS website)\n",
+        "#     \"https://www.ubs.com/global/en/investor-relations/financial-information/quarterly-reporting/qr-shared/2023/3q23/_jcr_content/mainpar/toplevelgrid_copy_co/col1/linklistreimagined_c/link_1665858674.1136236242.file/PS9jb250ZW50L2RhbS9hc3NldHMvY2MvaW52ZXN0b3ItcmVsYXRpb25zL3F1YXJ0ZXJsaWVzLzIwMjMvM3EyMy8zcTIzLWVhcm5pbmdzLWNhbGwtcmVtYXJrcy5wZGY%3D/3q23-earnings-call-remarks.pdf\",\n",
+        "#     # Q4 2023 (actual URL as found on UBS website)\n",
+        "#     \"https://www.ubs.com/global/en/investor-relations/financial-information/quarterly-reporting/qr-shared/2023/4q23/_jcr_content/mainpar/toplevelgrid_copy_co/col1/linklistreimagined_c/link_984441358_copy_.1148964796.file/PS9jb250ZW50L2RhbS9hc3NldHMvY2MvaW52ZXN0b3ItcmVsYXRpb25zL3F1YXJ0ZXJsaWVzLzIwMjMvNHEyMy80cTIzLWVhcm5pbmdzLWNhbGwtcmVtYXJrcy5wZGY%3D/4q23-earnings-call-remarks.pdf\",\n",
+        "\n",
+        "#     # 2024 Transcripts (current reporting page)\n",
+        "#     # Q1 2024\n",
+        "#     \"https://www.ubs.com/global/en/investor-relations/financial-information/quarterly-reporting/qr-shared/2024/1q24/_jcr_content/mainpar/toplevelgrid_copy_co/col1/linklistreimagined_c/link_1853274911_copy.1827040041.file/PS9jb250ZW50L2RhbS9hc3NldHMvY2MvaW52ZXN0b3ItcmVsYXRpb25zL3F1YXJ0ZXJsaWVzLzIwMjQvMXEyNC8xcTI0LWVhcm5pbmdzLWNhbGwtcmVtYXJrcy5wZGY=/1q24-earnings-call-remarks.pdf\",\n",
+        "#     # Q2 2024 (placeholder URL – please verify)\n",
+        "#     \"https://www.ubs.com/global/en/investor-relations/financial-information/quarterly-reporting/qr-shared/2024/2q24/_jcr_content/mainpar/toplevelgrid_copy_co/col1/linklistreimagined_c/link_1458805504.1014368069.file/PS9jb250ZW50L2RhbS9hc3NldHMvY2MvaW52ZXN0b3ItcmVsYXRpb25zL3F1YXJ0ZXJsaWVzLzIwMjQvMnEyNC8ycTI0LWVhcm5pbmdzLWNhbGwtcmVtYXJrcy5wZGY=/2q24-earnings-call-remarks.pdf\",\n",
+        "#     # Q3 2024\n",
+        "#     \"https://www.ubs.com/global/en/investor-relations/financial-information/quarterly-reporting/qr-shared/2024/3q24/_jcr_content/mainpar/toplevelgrid_copy_co/col1/linklistreimagined_c/link_1458805504_copy.1529925360.file/PS9jb250ZW50L2RhbS9hc3NldHMvY2MvaW52ZXN0b3ItcmVsYXRpb25zL3F1YXJ0ZXJsaWVzLzIwMjQvM3EyNC8zcTI0LWVhcm5pbmdzLWNhbGwtcmVtYXJrcy5wZGY%3D/3q24-earnings-call-remarks.pdf\",\n",
+        "#     # Q4 2024\n",
+        "#     \"https://www.ubs.com/global/en/investor-relations/financial-information/quarterly-reporting/qr-shared/2024/4q24/_jcr_content/mainpar/toplevelgrid_copy/col1/linklistreimagined_c/link_1665858674_copy.0922295456.file/PS9jb250ZW50L2RhbS9hc3NldHMvY2MvaW52ZXN0b3ItcmVsYXRpb25zL3F1YXJ0ZXJsaWVzLzIwMjQvNHEyNC80cTI0LWVhcm5pbmdzLWNhbGwtcmVtYXJrcy5wZGY%3D/4q24-earnings-call-remarks.pdf\"\n",
+        "# ]\n",
+        "\n",
+        "# -------------------------------\n",
+        "# 4. Define a function to download a PDF\n",
+        "# -------------------------------\n",
+        "def download_pdf(url, raw_dir):\n",
+        "    \"\"\"Downloads a PDF from the given URL and saves it to raw_dir.\n",
+        "    Returns a tuple: (url, status, file_path or error message).\n",
+        "    \"\"\"\n",
+        "    file_name = url.split(\"/\")[-1]\n",
+        "    file_path = os.path.join(raw_dir, file_name)\n",
+        "\n",
+        "    # Skip download if file already exists\n",
+        "    if os.path.exists(file_path):\n",
+        "        return (url, \"exists\", file_path)\n",
+        "\n",
+        "    try:\n",
+        "        response = requests.get(url, timeout=15)\n",
+        "        if response.status_code == 200:\n",
+        "            with open(file_path, \"wb\") as f:\n",
+        "                f.write(response.content)\n",
+        "            return (url, \"downloaded\", file_path)\n",
+        "        else:\n",
+        "            return (url, f\"Failed (status code: {response.status_code})\", None)\n",
+        "    except Exception as e:\n",
+        "        return (url, f\"Error: {str(e)}\", None)\n",
+        "\n",
+        "# -------------------------------\n",
+        "# 5. Download all PDFs concurrently and log the results\n",
+        "# -------------------------------\n",
+        "results = []\n",
+        "with ThreadPoolExecutor(max_workers=4) as executor:\n",
+        "    futures = [executor.submit(download_pdf, url, raw_dir) for url in transcript_urls]\n",
+        "    for future in as_completed(futures):\n",
+        "        result = future.result()\n",
+        "        results.append(result)\n",
+        "        print(result)\n",
+        "\n",
+        "print(\"\\nSummary of Downloads:\")\n",
+        "for res in results:\n",
+        "    print(res)\n"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "-6wyySTZLUsy"
+      },
+      "source": []
+    }
+  ],
+  "metadata": {
+    "colab": {
+      "include_colab_link": true,
+      "provenance": []
+    },
+    "kernelspec": {
+      "display_name": "Python 3",
+      "name": "python3"
+    },
+    "language_info": {
+      "codemirror_mode": {
+        "name": "ipython",
+        "version": 3
+      },
+      "file_extension": ".py",
+      "mimetype": "text/x-python",
+      "name": "python",
+      "nbconvert_exporter": "python",
+      "pygments_lexer": "ipython3",
+      "version": "3.9.6"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 0
+}
